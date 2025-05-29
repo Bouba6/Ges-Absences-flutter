@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../controllers/login_controller.dart';
 
-class LoginView extends StatelessWidget {
+class LoginView extends GetView<LoginController> {
   const LoginView({Key? key}) : super(key: key);
 
   @override
@@ -33,7 +35,7 @@ class LoginView extends StatelessWidget {
                     height: 120,
                   ),
                 ),
-                // Dropdown école
+                // Dropdown type d'utilisateur
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -42,23 +44,42 @@ class LoginView extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    alignment: AlignmentDirectional.center,
                     decoration: const InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'Votre Ecole',
+                      hintText: 'Vigile / Etudiant',
+                      hintStyle: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 16,
+                      ),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'Management', child: Text('MANAGEMENT')),
-                      DropdownMenuItem(value: 'Droit', child: Text('DROIT')),
-                      DropdownMenuItem(value: 'Ingenieur', child: Text('INGENIEUR')),
-                      DropdownMenuItem(value: 'Madiba', child: Text('MADIBA')),
+                      DropdownMenuItem(
+                        value: 'Vigile',
+                        child: Text(
+                          'Vigile',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Etudiant',
+                        child: Text(
+                          'Etudiant',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
                     ],
-                    onChanged: (value) {},
+                    onChanged: controller.setUserType,
                   ),
                 ),
                 // Champ email
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   child: TextField(
+                    onChanged: controller.setEmail,
                     decoration: InputDecoration(
                       hintText: 'E-mail',
                       border: OutlineInputBorder(
@@ -76,6 +97,7 @@ class LoginView extends StatelessWidget {
                 Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: TextField(
+                    onChanged: controller.setPassword,
                     obscureText: true,
                     decoration: InputDecoration(
                       hintText: 'Mots de passe',
@@ -110,7 +132,7 @@ class LoginView extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: controller.login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: buttonColor,
                       shape: RoundedRectangleBorder(
