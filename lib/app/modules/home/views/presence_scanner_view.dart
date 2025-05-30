@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../../../routes/app_pages.dart';
+import '../controllers/home_controller.dart';
 
-class PresenceScannerView extends StatelessWidget {
+class PresenceScannerView extends GetView<HomeController> {
   const PresenceScannerView({super.key});
 
   @override
@@ -34,7 +37,9 @@ class PresenceScannerView extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.exit_to_app),
-                    onPressed: () {},
+                    onPressed: () {
+                      controller.seDeconnecter();
+                    },
                   ),
                 ],
               ),
@@ -71,7 +76,19 @@ class PresenceScannerView extends StatelessWidget {
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                       ),
-                      onPressed: () {},
+                      onPressed: () async {
+                        final scannedId = await Get.toNamed(Routes.SCANNER);
+                        if (scannedId != null) {
+                          print('Scanned ID received: $scannedId');
+                          final etudiant = controller.findEtudiantByMatricule(scannedId);
+                          if (etudiant != null) {
+                            controller.addPointage(etudiant);
+                            Get.snackbar('Succès', 'Pointage enregistré pour ${etudiant.prenom} ${etudiant.nom}', snackPosition: SnackPosition.BOTTOM);
+                          } else {
+                            Get.snackbar('Erreur', 'Étudiant non trouvé avec le matricule $scannedId', snackPosition: SnackPosition.BOTTOM);
+                          }
+                        }
+                      },
                       child: const Text('Ouvrir le scanner', style: TextStyle(color: Colors.white)),
                     ),
                   ),
@@ -84,6 +101,7 @@ class PresenceScannerView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               TextField(
+                controller: controller.studentIdController,
                 decoration: InputDecoration(
                   hintText: 'ID Etudiant(ISM2223DK)',
                   border: OutlineInputBorder(
@@ -106,7 +124,21 @@ class PresenceScannerView extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    final manualId = controller.studentIdController.text;
+                    if (manualId.isNotEmpty) {
+                      final etudiant = controller.findEtudiantByMatricule(manualId);
+                      if (etudiant != null) {
+                        controller.addPointage(etudiant);
+                        Get.snackbar('Succès', 'Pointage enregistré pour ${etudiant.prenom} ${etudiant.nom}', snackPosition: SnackPosition.BOTTOM);
+                        controller.clearStudentIdField();
+                      } else {
+                        Get.snackbar('Erreur', 'Étudiant non trouvé avec le matricule $manualId', snackPosition: SnackPosition.BOTTOM);
+                      }
+                    } else {
+                      Get.snackbar('Attention', 'Veuillez saisir un matricule', snackPosition: SnackPosition.BOTTOM);
+                    }
+                  },
                   child: const Text('Enregistrer', style: TextStyle(color: Colors.white)),
                 ),
               ),
@@ -137,15 +169,14 @@ class PresenceScannerView extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: ListView(
+                child: Obx(() => ListView.builder(
                   padding: EdgeInsets.zero,
-                  children: const [
-                    _HistoriqueRow(nom: 'Aminata DIOP', heure: '07:30'),
-                    _HistoriqueRow(nom: 'Sidy MBAYE', heure: '07:30'),
-                    _HistoriqueRow(nom: 'Victoria  KOUNDA', heure: '07:30'),
-                    _HistoriqueRow(nom: 'Mouhamed FALL', heure: '07:30'),
-                  ],
-                ),
+                  itemCount: controller.historiquePointage.length,
+                  itemBuilder: (context, index) {
+                    final pointage = controller.historiquePointage[index];
+                    return _HistoriqueRow(nom: pointage['nom']!, heure: pointage['heure']!);
+                  },
+                )),
               ),
             ],
           ),
