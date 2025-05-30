@@ -5,14 +5,6 @@ class LoginController extends GetxController {
   final email = ''.obs;
   final password = ''.obs;
   
-  // Liste des centres disponibles
-  final List<String> schools = [
-    'Management',
-    'Droit',
-    'Ingenieur',
-    'Madiba'
-  ];
-
   void setUserType(String? value) {
     if (value != null) {
       userType.value = value;
