@@ -8,7 +8,9 @@ class EleveRepository extends GetConnect {
 
   Future<List<EleveResponse>> fetchEleves() async {
     final response = await get(_baseUrl);
+    print("Status code: ${response.statusCode}");
     if (response.isOk) {
+      print("Status code: ${response.statusCode}");
       return (response.body['results'] as List)
           .map((json) => EleveResponse.fromJson(json))
           .toList();
