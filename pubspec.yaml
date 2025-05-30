@@ -12,6 +12,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   get: ^4.7.2
   intl: ^0.18.1
+  qr_flutter: ^4.0.0
+  google_fonts: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +28,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/user.png
+    - assets/avatar_placeholder.png
