@@ -5,20 +5,35 @@ import 'package:get/get.dart';
 import '../controllers/home_controller.dart';
 
 class HomeView extends GetView<HomeController> {
-  const HomeView({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('HomeView'),
-        centerTitle: true,
+        title: Text('Liste des élèves'),
       ),
-      body: const Center(
-        child: Text(
-          'HomeView is working',
-          style: TextStyle(fontSize: 20),
-        ),
-      ),
+      body: Obx(() {
+        if (controller.loading.value) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (controller.error.isNotEmpty) {
+          return Center(child: Text(controller.error.value));
+        }
+        if (controller.eleves.isEmpty) {
+          return Center(child: Text('Aucun élève trouvé'));
+        }
+
+        return ListView.builder(
+          itemCount: controller.eleves.length,
+          itemBuilder: (context, index) {
+            final eleve = controller.eleves[index];
+            return ListTile(
+              title: Text('${eleve.nom} ${eleve.prenom}'),
+              subtitle: Text(eleve.email),
+              trailing: Text(eleve.ville),
+            );
+          },
+        );
+      }),
     );
   }
 }
