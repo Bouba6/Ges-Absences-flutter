@@ -1,9 +1,13 @@
 import 'package:get/get.dart';
+import '../../../services/auth_service.dart';
 
 class LoginController extends GetxController {
   final userType = ''.obs;
   final email = ''.obs;
   final password = ''.obs;
+  final isLoading = false.obs;
+  
+  final AuthService _authService = Get.find<AuthService>();
   
   void setUserType(String? value) {
     if (value != null) {
@@ -19,7 +23,7 @@ class LoginController extends GetxController {
     password.value = value;
   }
 
-  void login() {
+  Future<void> login() async {
     if (userType.isEmpty || email.isEmpty || password.isEmpty) {
       Get.snackbar(
         'Erreur',
@@ -28,8 +32,33 @@ class LoginController extends GetxController {
       );
       return;
     }
-    
-    // TODO: Implémenter la logique de connexion
-    Get.offAllNamed('/home');
+
+    try {
+      isLoading.value = true;
+      
+      final success = await _authService.login(
+        email.value,
+        password.value,
+        userType.value,
+      );
+
+      if (success) {
+        Get.offAllNamed('/home');
+      } else {
+        Get.snackbar(
+          'Erreur',
+          'Identifiants invalides',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Erreur',
+        'Une erreur est survenue lors de la connexion',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isLoading.value = false;
+    }
   }
 } 
