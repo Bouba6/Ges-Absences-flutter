@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  mobile_scanner: ^3.2.0
   cupertino_icons: ^1.0.8
   get: ^4.7.2
 
@@ -30,3 +30,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+      - assets/img/ISM.jpg

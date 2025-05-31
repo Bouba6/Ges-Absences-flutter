@@ -1,3 +1,5 @@
+import 'package:gesabscences/app/Repositories/EleveRepositories.dart';
+import 'package:gesabscences/app/data/dto/Response/Eleveesponse.dart';
 import 'package:get/get.dart';
 
 class HomeController extends GetxController {
@@ -41,12 +43,12 @@ class HomeController extends GetxController {
     }
   }
 
-  Future<void> validerPresence(String eleveId) async {
+  Future<void> validerPresence(String eleveId,String idVigile) async {
     try {
       validatingPresence.value = true;
 
       // Appel à l'endpoint de validation
-      await repository.validerPresence(eleveId);
+      await repository.validerPresence(eleveId,idVigile);
 
       // Mettre à jour la liste des élèves après validation
       await loadEleves();

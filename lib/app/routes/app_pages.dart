@@ -8,6 +8,8 @@ import '../modules/Pointage/bindings/pointage_binding.dart';
 import '../modules/Pointage/views/pointage_view.dart';
 import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
+import 'package:gesabscences/app/modules/home/views/scanner_view.dart';
+
 part 'app_routes.dart';
 
 class AppPages {
@@ -16,6 +18,18 @@ class AppPages {
   static const INITIAL = Routes.MAIN;
 
   static final routes = [
+    GetPage(name: _Paths.MAIN, page: () => MainView(), binding: MainBinding()),
     GetPage(name: _Paths.HOME, page: () => HomeView(), binding: HomeBinding()),
+    GetPage(
+      name: _Paths.ABSCENCE,
+      page: () => AbsenceView(),
+      binding: AbscenceBinding(),
+    ),
+    GetPage(
+      name: _Paths.POINTAGE,
+      page: () => PointageView(),
+      binding: PointageBinding(),
+    ),
+    GetPage(name: _Paths.SCANNER, page: () => ScannerView()),
   ];
 }
