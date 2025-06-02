@@ -3,12 +3,14 @@ class Abscenceresponse {
   final String eleveId;
   final String statutAbscence;
   final String coursId;
+  final String statutjustificatif;
 
   Abscenceresponse({
     required this.id,
     required this.coursId,
     required this.eleveId,
     required this.statutAbscence,
+    required this.statutjustificatif,
   });
 
   factory Abscenceresponse.fromJson(Map<String, dynamic> json) {
@@ -17,6 +19,7 @@ class Abscenceresponse {
       eleveId: json['eleveId']?.toString() ?? '',
       coursId: json['coursId']?.toString() ?? '',
       statutAbscence: json['statutAbscence']?.toString() ?? 'NON_JUSTIFIER',
+      statutjustificatif: json['statutjustificatif']?.toString() ?? '',
     );
   }
 
@@ -26,6 +29,7 @@ class Abscenceresponse {
       'eleveId': eleveId,
       'coursId': coursId,
       'statutAbscence': statutAbscence,
+      'statutjustificatif': statutjustificatif,
     };
   }
 }

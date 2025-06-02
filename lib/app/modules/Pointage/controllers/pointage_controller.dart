@@ -8,6 +8,7 @@ class PointageController extends GetxController {
   var state = PointageState.loading.obs;
   var pointages = <PointageResponse>[].obs;
   var errorMessage = ''.obs;
+  final Pointagerepositories _pointagerepositories = Pointagerepositories();
 
   @override
   void onInit() {
@@ -22,7 +23,7 @@ class PointageController extends GetxController {
       // ID hardcodé directement dans le repository
       print('Chargement des pointages...'); // Debug
 
-      final result = await Pointagerepositories.getPointagesByVigileId();
+      final result = await _pointagerepositories.getPointagesByVigileId();
 
       print('Résultat reçu: $result'); // Debug
       print('Nombre d\'éléments: ${result.length}'); // Debug

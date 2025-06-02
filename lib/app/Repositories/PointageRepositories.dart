@@ -1,17 +1,27 @@
+import 'package:gesabscences/app/Repositories/AuthRepositories.dart';
+import 'package:gesabscences/app/Repositories/VigileRepoistory.dart';
+import 'package:gesabscences/app/Repositories/userDataRepository.dart';
 import 'package:gesabscences/app/data/dto/Response/PointageResponse.dart';
 import 'package:get/get.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class Pointagerepositories {
-  static const baseUrl = 'http://192.168.1.8:8080/api/v1/mobile';
-
-  static Future<List<PointageResponse>> getPointagesByVigileId(
-  ) async {
+  static const baseUrl = 'https://ges-abscences-backend.onrender.com/api/v1/mobile';
+  static final AuthService _authService = Get.find<AuthService>();
+  final VigileRepository _vigileRepository = Get.put<VigileRepository>(
+    VigileRepository(),
+  );
+  final UserDataService _userDataService = Get.find<UserDataService>();
+  Future<List<PointageResponse>> getPointagesByVigileId() async {
     try {
-      final url = Uri.parse(
-        '$baseUrl/pointage/byVigileId/6839861414d219133e656d7e',
+      final String? userId = _authService.getUserId();
+      final vigileResponse = await _vigileRepository.getVigileByUserId(
+        userId ?? '',
       );
+      String vigileId = vigileResponse.id;
+      final url = Uri.parse('$baseUrl/pointage/byVigileId/$vigileId');
+      _userDataService.setVigileId(vigileId);
 
       final response = await http.get(
         url,

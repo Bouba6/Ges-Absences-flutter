@@ -219,7 +219,8 @@ class AbsenceView extends StatelessWidget {
     Abscenceresponse absence,
     AbscenceController controller,
   ) {
-    final bool isJustified = absence.statutAbscence == 'JUSTIFIER';
+    final String isJustified =
+        absence.statutAbscence == 'JUSTIFIER' ? 'Justifiée' : 'Non justifiée';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -271,7 +272,7 @@ class AbsenceView extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (isJustified) ...[
+                if (isJustified == true) ...[
                   ElevatedButton.icon(
                     onPressed: () => controller.marquerNonJustifiee(absence),
                     icon: Icon(Icons.cancel, size: 18, color: white),

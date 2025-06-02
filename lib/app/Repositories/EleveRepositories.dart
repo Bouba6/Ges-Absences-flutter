@@ -1,178 +1,92 @@
-import 'dart:convert';
-import 'package:gesabscences/app/data/dto/Request/AbscenceRequest.dart';
-import 'package:gesabscences/app/data/dto/Response/AbscenceResponse.dart';
+import 'package:get/get.dart';
+import '../data/dto/Response/Eleveesponse.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class AbsenceRepository {
-  static const String baseUrl = 'http://192.168.1.8:8080/api/v1/mobile';
+class EleveRepository extends GetConnect {
+  static const _baseUrl = 'https://ges-abscences-backend.onrender.com/api/v1/mobile';
 
-  // Récupérer les absences d'un élève
-  static Future<List<Abscenceresponse>> getAbsencesByEleveId(
-    String eleveId,
-  ) async {
-    try {
-      String eleveId = "683997d214d219133e657125";
-      final url = Uri.parse('$baseUrl/abscences/eleve/$eleveId');
+  Future<List<EleveResponse>> fetchEleves() async {
+    final response = await http.get(Uri.parse('$_baseUrl/eleves'));
 
-      print('GET absences pour élève: $eleveId');
-      print('URL: $url');
+    print("Status code: ${response.statusCode}");
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
 
-      print('Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-
-        // Gérer la structure de réponse (supposant une structure similaire aux pointages)
-        if (responseData is Map<String, dynamic> &&
-            responseData.containsKey('results')) {
-          final List<dynamic> jsonData = responseData['results'];
-          print('Nombre d\'absences trouvées: ${jsonData.length}');
-          return jsonData
-              .map((json) => Abscenceresponse.fromJson(json))
-              .toList();
-        } else if (responseData is List) {
-          print('Nombre d\'absences trouvées: ${responseData.length}');
-          return responseData
-              .map((json) => Abscenceresponse.fromJson(json))
-              .toList();
-        } else {
-          print('Structure de réponse inattendue: $responseData');
-          return [];
-        }
+      if (data['results'] is List) {
+        return (data['results'] as List)
+            .map((json) => EleveResponse.fromJson(json))
+            .toList();
       } else {
-        print('Erreur HTTP: ${response.statusCode} - ${response.body}');
-        throw Exception(
-          'Erreur lors de la récupération des absences: ${response.statusCode}',
-        );
+        throw Exception("Format de données inattendu");
       }
-    } catch (e) {
-      print('Erreur dans getAbsencesByEleveId: $e');
-      throw Exception('Erreur de connexion: $e');
+    } else {
+      throw Exception('Erreur HTTP ${response.statusCode}');
     }
   }
 
-  // Mettre à jour une absence
-  static Future<bool> updateAbsence(
-    String absenceId,
-    UpdateAbsenceRequest request,
-  ) async {
-    try {
-      final url = Uri.parse('$baseUrl/abscences/update/$absenceId');
-
-      print('PUT absence: $absenceId');
-      print('URL: $url');
-      print('Request Body: ${json.encode(request.toJson())}');
-
-      final response = await http.put(
-        url,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode(request.toJson()),
-      );
-
-      print('Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        print('✅ Absence mise à jour avec succès');
-        return true;
-      } else {
-        print(
-          '❌ Erreur lors de la mise à jour: ${response.statusCode} - ${response.body}',
-        );
-        throw Exception('Erreur lors de la mise à jour: ${response.body}');
-      }
-    } catch (e) {
-      print('Erreur dans updateAbsence: $e');
-      throw Exception('Erreur lors de la mise à jour: $e');
+  Future<EleveResponse> fetchEleveById(String id) async {
+    final response = await get('$_baseUrl/eleves/$id');
+    print("Requête vers $_baseUrl/$id");
+    print("Status code: ${response.statusCode}");
+    print("Body: ${response.body}");
+    if (response.isOk) {
+      // Tu dois extraire l'objet Eleve à l'intérieur du champ "results"
+      return EleveResponse.fromJson(response.body['results']);
+    } else {
+      throw Exception('Erreur ${response.statusCode}');
     }
   }
 
-  // Méthode utilitaire pour justifier une absence
-  static Future<bool> justifierAbsence(
-    String absenceId,
-    Abscenceresponse absence,
-    String justificatifId,
-  ) async {
-    final request = UpdateAbsenceRequest(
-      statutAbscence: 'JUSTIFIER',
-      eleveId: absence.eleveId,
-      justificatifId: justificatifId,
-      coursId: absence.coursId,
-      typeAbscence: absence.statutAbscence,
-    );
-
-    return await updateAbsence(absenceId, request);
+  Future<EleveResponse> createEleve(EleveResponse eleve) async {
+    final response = await post(_baseUrl, eleve.toJson());
+    if (response.isOk) {
+      return EleveResponse.fromJson(response.body);
+    } else {
+      throw Exception('Erreur ${response.statusCode}');
+    }
   }
 
-  // Méthode utilitaire pour marquer comme non justifiée
-  static Future<bool> marquerNonJustifiee(
-    String absenceId,
-    Abscenceresponse absence,
-  ) async {
-    final request = UpdateAbsenceRequest(
-      statutAbscence: 'JUSTIFIER',
-      eleveId: absence.eleveId,
-      justificatifId: null, // Retirer le justificatif
-      coursId: absence.coursId,
-      typeAbscence: absence.statutAbscence,
-    );
-
-    return await updateAbsence(absenceId, request);
-  }
-
-  // À ajouter dans votre AbsenceRepository
-  static Future<bool> creerJustificatif(
-    String justificatif,
-    String statutJustification,
-    String abscenceId,
-  ) async {
+  Future<void> validerPresence(String eleveId, String idVigile) async {
     try {
-      final url = 'http://192.168.1.8:8080/api/v1/mobile/justifier';
-
-      final body = {
-        'justificatif': justificatif,
-        'statutJustification': statutJustification,
-        'abscenceId': abscenceId,
-      };
-
-      print('🚀 Envoi justificatif vers: $url');
-      print('📋 Données: ${jsonEncode(body)}');
-
       final response = await http.post(
-        Uri.parse(url),
+        Uri.parse('$_baseUrl/pointage/valider-presence'),
         headers: {
-          'Accept': 'application/json',
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        body: jsonEncode(body),
+        body: jsonEncode({
+          'eleveId': eleveId,
+          'heureArrivee': "2025-05-30T07:00:00.000Z",
+          'idVigile': idVigile,
+        }),
       );
 
-      print('📬 Statut réponse: ${response.statusCode}');
-      print('📄 Réponse: ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ Justificatif créé avec succès');
-        return true;
-      } else {
-        print('❌ Erreur HTTP: ${response.statusCode}');
-        print('📄 Corps de la réponse: ${response.body}');
-        return false;
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['message'] ?? 'Erreur lors de la validation');
       }
     } catch (e) {
-      print('❌ Erreur lors de la création du justificatif: $e');
-      return false;
+      throw Exception('Erreur de validation: $e');
     }
   }
+
+  Future<EleveResponse> getEleveByUserId(String userId) async {
+    final response = await http.get(Uri.parse('$_baseUrl/eleves/user/$userId'));
+
+    if (response.statusCode == 200) {
+      final jsonBody = json.decode(response.body);
+      final data =
+          jsonBody['results']; // <- Ici on extrait directement "results"
+
+      print("Status code: ${response.statusCode}");
+      print(EleveResponse.fromJson(data));
+      return EleveResponse.fromJson(data);
+    } else {
+      throw Exception('Élève non trouvé pour userId: $userId');
+    }
+  }
+
+  // Ajoute update, delete selon besoin
 }

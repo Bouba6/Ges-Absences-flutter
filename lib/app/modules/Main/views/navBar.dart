@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 class CustomBottomNavigationBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
+  final List<IconData> icons;
+  final int maxIndex;
 
   const CustomBottomNavigationBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    required this.icons,
+    required this.maxIndex,
   });
 
   @override
@@ -17,26 +21,15 @@ class CustomBottomNavigationBar extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _NavItem(
-            index: 0,
-            icon: Icons.logout,
-            isSelected: currentIndex == 0,
+        children: List.generate(
+          icons.length,
+          (index) => _NavItem(
+            index: index,
+            icon: icons[index],
+            isSelected: currentIndex == index,
             onTap: onTap,
           ),
-          _NavItem(
-            index: 1,
-            icon: Icons.home_filled,
-            isSelected: currentIndex == 1,
-            onTap: onTap,
-          ),
-          _NavItem(
-            index: 2,
-            icon: Icons.list_alt_sharp,
-            isSelected: currentIndex == 2,
-            onTap: onTap,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -57,15 +50,8 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    IconData displayIcon = icon;
-    if (icon == Icons.logout) {
-      displayIcon = Icons.login;
-    }
-
     const Color selectedColor = Color(0xFF351F16);
-    const Color unselectedColor = Color(
-      0xFF5C4033,
-    ); // variante plus claire si tu veux
+    const Color unselectedColor = Color(0xFF5C4033);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -100,7 +86,7 @@ class _NavItem extends StatelessWidget {
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: Icon(
-                  displayIcon,
+                  icon,
                   key: ValueKey('$index-$isSelected'),
                   color: isSelected ? Colors.white : Colors.black87,
                   size: isSelected ? 34 : 32,

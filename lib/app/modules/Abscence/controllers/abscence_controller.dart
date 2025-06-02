@@ -1,11 +1,16 @@
 // controllers/absence_controller.dart
+import 'dart:io';
+
 import 'package:gesabscences/app/Repositories/AbscenceRepository.dart';
+import 'package:gesabscences/app/Repositories/StorageRepository.dart';
 import 'package:gesabscences/app/core/Enums/AbscenceState.dart';
 import 'package:gesabscences/app/data/dto/Response/AbscenceResponse.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AbscenceController extends GetxController {
+  final AbsenceRepository _absenceRepository = AbsenceRepository();
   var state = AbsenceState.loading.obs;
   var absences = <Abscenceresponse>[].obs;
   var errorMessage = ''.obs;
@@ -32,17 +37,17 @@ class AbscenceController extends GetxController {
       print('🔄 Début chargement absences pour élève: $targetEleveId');
 
       // Ajouter un timeout pour éviter les blocages infinis
-      final result = await AbsenceRepository.getAbsencesByEleveId(
-        targetEleveId,
-      ).timeout(
-        Duration(seconds: 30), // Timeout de 30 secondes
-        onTimeout: () {
-          print('⏰ Timeout atteint lors du chargement des absences');
-          throw Exception(
-            'Délai d\'attente dépassé. Vérifiez votre connexion.',
+      final result = await _absenceRepository
+          .getAbsencesByEleveId(targetEleveId)
+          .timeout(
+            Duration(seconds: 30), // Timeout de 30 secondes
+            onTimeout: () {
+              print('⏰ Timeout atteint lors du chargement des absences');
+              throw Exception(
+                'Délai d\'attente dépassé. Vérifiez votre connexion.',
+              );
+            },
           );
-        },
-      );
 
       print('✅ Réponse reçue: ${result?.length ?? 0} absences');
 
@@ -81,7 +86,7 @@ class AbscenceController extends GetxController {
       final targetEleveId = eleveId.value;
       print('🔗 Test avec eleveId: $targetEleveId');
 
-      final result = await AbsenceRepository.getAbsencesByEleveId(
+      final result = await _absenceRepository.getAbsencesByEleveId(
         targetEleveId,
       );
       print('🎯 Résultat test: $result');
@@ -103,9 +108,10 @@ class AbscenceController extends GetxController {
 
   Future<void> justifierAbsence(Abscenceresponse absence) async {
     try {
-      final justificatifText = await _showJustificatifDialog();
+      final justificatifResult = await _showJustificatifDialog();
 
-      if (justificatifText == null || justificatifText.isEmpty) {
+      if (justificatifResult == null ||
+          (justificatifResult['justificatif'] as String).isEmpty) {
         Get.snackbar(
           'Annulé',
           'Justification annulée',
@@ -115,12 +121,14 @@ class AbscenceController extends GetxController {
       }
 
       isUpdating.value = true;
-
+      final justificatifText = justificatifResult['justificatif'] as String;
+      final imageUrl = justificatifResult['imageUrl'] as String?;
       // Créer le justificatif via l'endpoint POST avec statutJustification = "EN_ATTENTE"
       final success = await AbsenceRepository.creerJustificatif(
-        justificatifText,
-        "EN_ATTENTE",
-        absence.id,
+        justificatif: justificatifText,
+        statutJustification: "EN_ATTENTE",
+        abscenceId: absence.id,
+        imageUrl: imageUrl,
       ).timeout(Duration(seconds: 15));
 
       if (success) {
@@ -187,48 +195,128 @@ class AbscenceController extends GetxController {
     }
   }
 
-  Future<String?> _showJustificatifDialog() async {
-    final textController = TextEditingController();
+  Future<Map<String, dynamic>?> _showJustificatifDialog() async {
+  final textController = TextEditingController();
+  File? selectedImage;
+  String? imageUrl;
+  final storageService = StorageService();
 
-    return await Get.dialog<String>(
-      AlertDialog(
-        title: const Text('Justifier l\'absence'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Saisissez votre justificatif :'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: textController,
-              decoration: const InputDecoration(
-                labelText: 'Justificatif',
-                border: OutlineInputBorder(),
-                hintText: 'Ex: Maladie, rendez-vous médical...',
-              ),
-              maxLines: 3,
-              autofocus: true,
+  return await Get.dialog<Map<String, dynamic>?>(
+    StatefulBuilder(
+      builder: (context, setState) {
+        return AlertDialog(
+          title: const Text('Justifier l\'absence'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Saisissez votre justificatif :'),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: textController,
+                  decoration: const InputDecoration(
+                    labelText: 'Justificatif',
+                    border: OutlineInputBorder(),
+                    hintText: 'Ex: Maladie, rendez-vous médical...',
+                  ),
+                  maxLines: 3,
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final picker = ImagePicker();
+                    final pickedFile = await picker.pickImage(
+                      source: ImageSource.gallery,
+                    );
+                    if (pickedFile != null) {
+                      setState(() {
+                        selectedImage = File(pickedFile.path);
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.image),
+                  label: const Text("Choisir une image"),
+                ),
+                if (selectedImage != null) ...[
+                  const SizedBox(height: 8),
+                  Image.file(selectedImage!, height: 100),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Image sélectionnée: ${selectedImage!.path.split('/').last}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: null),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final text = textController.text.trim();
+                if (text.isEmpty) {
+                  Get.snackbar('Erreur', 'Le justificatif est vide.');
+                  return;
+                }
+
+                try {
+                  // Upload image s'il y en a une - PASSEZ L'IMAGE EN PARAMÈTRE
+                  if (selectedImage != null) {
+                    // Afficher un indicateur de chargement
+                    Get.dialog(
+                      const AlertDialog(
+                        content: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(width: 16),
+                            Text('Upload en cours...'),
+                          ],
+                        ),
+                      ),
+                      barrierDismissible: false,
+                    );
+
+                    // Appeler la méthode avec l'image en paramètre
+                    imageUrl = await storageService.uploadImageAndGetUrl(selectedImage!);
+                    
+                    // Fermer l'indicateur de chargement
+                    Get.back();
+                  }
+
+                  // Retourner le résultat et fermer le dialog
+                  Get.back(
+                    result: {'justificatif': text, 'imageUrl': imageUrl},
+                  );
+                } catch (e) {
+                  // Fermer l'indicateur de chargement si il y a une erreur
+                  if (Get.isDialogOpen == true) {
+                    Get.back();
+                  }
+                  
+                  Get.snackbar(
+                    'Erreur', 
+                    'Erreur lors de l\'upload: ${e.toString()}',
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                  );
+                }
+              },
+              child: const Text('Valider'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: null),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final value = textController.text.trim();
-              Get.back(result: value.isNotEmpty ? value : null);
-            },
-            child: const Text('Valider'),
-          ),
-        ],
-      ),
-    );
-  }
+        );
+      },
+    ),
+  );
+}
 
   Future<bool> _showConfirmationDialog(String title, String message) async {
-    return await Get.dialog<bool>(
+    return await Get.dialog(
           AlertDialog(
             title: Text(title),
             content: Text(message),

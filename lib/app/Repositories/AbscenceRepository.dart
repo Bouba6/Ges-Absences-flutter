@@ -1,17 +1,37 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
+import 'package:gesabscences/app/Repositories/AuthRepositories.dart';
+import 'package:gesabscences/app/Repositories/EleveRepositories.dart';
 import 'package:gesabscences/app/data/dto/Request/AbscenceRequest.dart';
 import 'package:gesabscences/app/data/dto/Response/AbscenceResponse.dart';
+import 'package:gesabscences/app/data/dto/Response/Eleveesponse.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:http/http.dart' as http;
 
 class AbsenceRepository {
-  static const String baseUrl = 'http://192.168.1.8:8080/api/v1/mobile';
+  static const String baseUrl = 'https://ges-abscences-backend.onrender.com/api/v1/mobile';
+
+  static final Dio _dio = Dio(); // Dio peut être partagé ou injecté aussi
+  static final AuthService _authService = Get.find<AuthService>();
+  final EleveRepository _eleveRepository = Get.put<EleveRepository>(
+    EleveRepository(),
+  );
 
   // Récupérer les absences d'un élève
-  static Future<List<Abscenceresponse>> getAbsencesByEleveId(
-    String eleveId,
-  ) async {
+  Future<List<Abscenceresponse>> getAbsencesByEleveId(String eleveId) async {
     try {
-      String eleveId = "683997d214d219133e657125";
+      final String? userId = _authService.getUserId();
+      EleveResponse eleveResponse = await _eleveRepository.getEleveByUserId(
+        userId ?? '',
+      );
+      eleveId = eleveResponse.id;
+      if (eleveId == null) {
+        throw Exception(
+          "ID utilisateur non trouvé. L'utilisateur n'est peut-être pas connecté.",
+        );
+      }
+      // String eleveId = "683d74bd827bef35f1e7261a";
       final url = Uri.parse('$baseUrl/abscences/eleve/$eleveId');
 
       print('GET absences pour élève: $eleveId');
@@ -133,18 +153,20 @@ class AbsenceRepository {
   }
 
   // À ajouter dans votre AbsenceRepository
-  static Future<bool> creerJustificatif(
-    String justificatif,
-    String statutJustification,
-    String abscenceId,
-  ) async {
+  static Future<bool> creerJustificatif({
+    required String justificatif,
+    required String statutJustification,
+    required String abscenceId,
+    String? imageUrl,
+  }) async {
     try {
-      final url = 'http://192.168.1.8:8080/api/v1/mobile/justifier';
+      final url = 'https://ges-abscences-backend.onrender.com/api/v1/mobile/justifier';
 
       final body = {
         'justificatif': justificatif,
         'statutJustification': statutJustification,
         'abscenceId': abscenceId,
+        'imageUrl': imageUrl,
       };
 
       print('🚀 Envoi justificatif vers: $url');
