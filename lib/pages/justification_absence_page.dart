@@ -1,23 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
-class JustificationAbsencePage extends StatefulWidget {
-  const JustificationAbsencePage({Key? key}) : super(key: key);
+class JustificationAbsence extends StatefulWidget {
+  const JustificationAbsence({Key? key}) : super(key: key);
 
   @override
-  State<JustificationAbsencePage> createState() => _JustificationAbsencePageState();
+  State<JustificationAbsence> createState() => _JustificationAbsenceState();
 }
 
-class _JustificationAbsencePageState extends State<JustificationAbsencePage> {
+class _JustificationAbsenceState extends State<JustificationAbsence> {
   String? selectedType;
   TextEditingController descriptionController = TextEditingController();
-  PlatformFile? selectedFile;
+  List<PlatformFile> selectedFiles = [];
+  final ImagePicker _picker = ImagePicker();
 
+
+// Plusieurs types de fichiers peuvent être sélectionnés
   void _pickDocument() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
-    if (result != null && result.files.isNotEmpty) {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'png', 'pdf', 'jpeg'],
+    );
+
+    if (result != null) {
       setState(() {
-        selectedFile = result.files.first;
+        selectedFiles.addAll(result.files);
+      });
+    }
+  }
+// Prendre une photo avec la caméra
+  void _takePhoto() async {
+    final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
+    if (photo != null) {
+      setState(() {
+        selectedFiles.add(
+          PlatformFile(
+            name: photo.name,
+            path: photo.path,
+            size: File(photo.path).lengthSync(),
+          ),
+        );
       });
     }
   }
@@ -104,21 +129,38 @@ class _JustificationAbsencePageState extends State<JustificationAbsencePage> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text('Joindre un document'),
-              GestureDetector(
-                onTap: _pickDocument,
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(4),
+              const Text('Joindre des documents ou images'),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _pickDocument,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: selectedFiles.isNotEmpty
+                              ? selectedFiles.map((file) => Text(file.name)).toList()
+                              : [
+                                  const Text(
+                                    'Glissez-déposez ou cliquez pour ajouter fichiers/images',
+                                    style: TextStyle(color: Colors.grey),
+                                  )
+                                ],
+                        ),
+                      ),
+                    ),
                   ),
-                  child: Text(
-                    selectedFile != null ? selectedFile!.name : 'Glissez-déposez un fichier ou cliquez pour sélectionner',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    icon: const Icon(Icons.camera_alt),
+                    onPressed: _takePhoto,
+                  )
+                ],
               ),
               const Spacer(),
               Row(
