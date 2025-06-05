@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:gesabscences/app/Repositories/AbscenceRepository.dart';
 import 'package:gesabscences/app/Repositories/StorageRepository.dart';
+import 'package:gesabscences/app/Repositories/SupabaseRepositories.dart';
 import 'package:gesabscences/app/core/Enums/AbscenceState.dart';
 import 'package:gesabscences/app/data/dto/Response/AbscenceResponse.dart';
 import 'package:get/get.dart';
@@ -196,124 +197,132 @@ class AbscenceController extends GetxController {
   }
 
   Future<Map<String, dynamic>?> _showJustificatifDialog() async {
-  final textController = TextEditingController();
-  File? selectedImage;
-  String? imageUrl;
-  final storageService = StorageService();
+    final textController = TextEditingController();
+    File? selectedImage;
+    String? imageUrl;
+    final storageService = SupabaseStorageService(); // ✅ Nouveau service
+    bool isUploading = false;
 
-  return await Get.dialog<Map<String, dynamic>?>(
-    StatefulBuilder(
-      builder: (context, setState) {
-        return AlertDialog(
-          title: const Text('Justifier l\'absence'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Saisissez votre justificatif :'),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: textController,
-                  decoration: const InputDecoration(
-                    labelText: 'Justificatif',
-                    border: OutlineInputBorder(),
-                    hintText: 'Ex: Maladie, rendez-vous médical...',
+    return await Get.dialog<Map<String, dynamic>?>(
+      StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Justifier l\'absence'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Saisissez votre justificatif :'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: textController,
+                    decoration: const InputDecoration(
+                      labelText: 'Justificatif',
+                      border: OutlineInputBorder(),
+                      hintText: 'Ex: Maladie, rendez-vous médical...',
+                    ),
+                    maxLines: 3,
+                    autofocus: true,
                   ),
-                  maxLines: 3,
-                  autofocus: true,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final picker = ImagePicker();
-                    final pickedFile = await picker.pickImage(
-                      source: ImageSource.gallery,
-                    );
-                    if (pickedFile != null) {
-                      setState(() {
-                        selectedImage = File(pickedFile.path);
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.image),
-                  label: const Text("Choisir une image"),
-                ),
-                if (selectedImage != null) ...[
-                  const SizedBox(height: 8),
-                  Image.file(selectedImage!, height: 100),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Image sélectionnée: ${selectedImage!.path.split('/').last}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed:
+                        isUploading
+                            ? null
+                            : () async {
+                              final picker = ImagePicker();
+                              final pickedFile = await picker.pickImage(
+                                source: ImageSource.gallery,
+                                maxWidth: 1024,
+                                maxHeight: 1024,
+                                imageQuality: 85,
+                              );
+                              if (pickedFile != null) {
+                                setState(() {
+                                  selectedImage = File(pickedFile.path);
+                                });
+                              }
+                            },
+                    icon: const Icon(Icons.image),
+                    label: const Text("Choisir une image"),
                   ),
+                  if (selectedImage != null) ...[
+                    const SizedBox(height: 8),
+                    Image.file(selectedImage!, height: 100),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Image sélectionnée: ${selectedImage!.path.split('/').last}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                  if (isUploading) ...[
+                    const SizedBox(height: 16),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(width: 16),
+                        Text('Upload en cours...'),
+                      ],
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(result: null),
-              child: const Text('Annuler'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final text = textController.text.trim();
-                if (text.isEmpty) {
-                  Get.snackbar('Erreur', 'Le justificatif est vide.');
-                  return;
-                }
+            actions: [
+              TextButton(
+                onPressed: isUploading ? null : () => Get.back(result: null),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed:
+                    isUploading
+                        ? null
+                        : () async {
+                          final text = textController.text.trim();
+                          if (text.isEmpty) {
+                            Get.snackbar('Erreur', 'Le justificatif est vide.');
+                            return;
+                          }
 
-                try {
-                  // Upload image s'il y en a une - PASSEZ L'IMAGE EN PARAMÈTRE
-                  if (selectedImage != null) {
-                    // Afficher un indicateur de chargement
-                    Get.dialog(
-                      const AlertDialog(
-                        content: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(width: 16),
-                            Text('Upload en cours...'),
-                          ],
-                        ),
-                      ),
-                      barrierDismissible: false,
-                    );
+                          try {
+                            setState(() {
+                              isUploading = true;
+                            });
 
-                    // Appeler la méthode avec l'image en paramètre
-                    imageUrl = await storageService.uploadImageAndGetUrl(selectedImage!);
-                    
-                    // Fermer l'indicateur de chargement
-                    Get.back();
-                  }
+                            // ✅ Upload avec Supabase
+                            if (selectedImage != null) {
+                              imageUrl = await storageService
+                                  .uploadImageAndGetUrl(selectedImage!);
+                            }
 
-                  // Retourner le résultat et fermer le dialog
-                  Get.back(
-                    result: {'justificatif': text, 'imageUrl': imageUrl},
-                  );
-                } catch (e) {
-                  // Fermer l'indicateur de chargement si il y a une erreur
-                  if (Get.isDialogOpen == true) {
-                    Get.back();
-                  }
-                  
-                  Get.snackbar(
-                    'Erreur', 
-                    'Erreur lors de l\'upload: ${e.toString()}',
-                    backgroundColor: Colors.red,
-                    colorText: Colors.white,
-                  );
-                }
-              },
-              child: const Text('Valider'),
-            ),
-          ],
-        );
-      },
-    ),
-  );
-}
+                            Get.back(
+                              result: {
+                                'justificatif': text,
+                                'imageUrl': imageUrl,
+                              },
+                            );
+                          } catch (e) {
+                            setState(() {
+                              isUploading = false;
+                            });
+
+                            Get.snackbar(
+                              'Erreur',
+                              'Erreur lors de l\'upload: ${e.toString()}',
+                              backgroundColor: Colors.red,
+                              colorText: Colors.white,
+                            );
+                          }
+                        },
+                child: const Text('Valider'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   Future<bool> _showConfirmationDialog(String title, String message) async {
     return await Get.dialog(
