@@ -4,11 +4,31 @@ part of 'app_pages.dart';
 abstract class Routes {
   Routes._();
   static const HOME = _Paths.HOME;
+<<<<<<< HEAD
   static const LOGIN = _Paths.LOGIN;
+=======
+  static const SCANNER = _Paths.SCANNER;
+  static const MAIN = _Paths.MAIN;
+  static const POINTAGE = _Paths.POINTAGE;
+  static const ABSCENCE = _Paths.ABSCENCE;
+  static const LOGIN = _Paths.LOGIN;
+  static const ROUTE = _Paths.ROUTE;
+  static const COURS = _Paths.COURS;
+>>>>>>> origin/master
 }
 
 abstract class _Paths {
   _Paths._();
   static const HOME = '/home';
+<<<<<<< HEAD
   static const LOGIN = '/login';
+=======
+  static const SCANNER = '/scanner';
+  static const MAIN = '/main';
+  static const POINTAGE = '/pointage';
+  static const ABSCENCE = '/abscence';
+  static const LOGIN = '/login';
+  static const ROUTE = '/route';
+  static const COURS = '/cours';
+>>>>>>> origin/master
 }

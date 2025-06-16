@@ -9,4 +9,8 @@ class LoginBinding extends Bindings {
       () => LoginController(),
     );
   }
+<<<<<<< HEAD
 } 
+=======
+}
+>>>>>>> origin/master
