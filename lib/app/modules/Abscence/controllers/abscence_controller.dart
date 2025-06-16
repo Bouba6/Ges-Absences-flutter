@@ -123,14 +123,21 @@ class AbscenceController extends GetxController {
 
       isUpdating.value = true;
       final justificatifText = justificatifResult['justificatif'] as String;
-      final imageUrl = justificatifResult['imageUrl'] as String?;
-      // Créer le justificatif via l'endpoint POST avec statutJustification = "EN_ATTENTE"
+      final imageUrls =
+          justificatifResult['imageUrls'] as List<String>?; // ✅ Peut être null
+
+      print('🚀 Création justificatif:');
+      print('📝 Texte: $justificatifText');
+      print('🖼️ Images: ${imageUrls?.length ?? 0}');
+      print('🆔 AbsenceId: ${absence.id}');
+
+      // ✅ Utilisation du bon nom de paramètre
       final success = await AbsenceRepository.creerJustificatif(
         justificatif: justificatifText,
         statutJustification: "EN_ATTENTE",
         abscenceId: absence.id,
-        imageUrl: imageUrl,
-      ).timeout(Duration(seconds: 15));
+        imageUrl: imageUrls ?? [], // ✅ Nom correct + valeur par défaut
+      ).timeout(Duration(seconds: 30));
 
       if (success) {
         Get.snackbar(
@@ -141,9 +148,17 @@ class AbscenceController extends GetxController {
           colorText: Colors.white,
         );
         await refresh();
+      } else {
+        Get.snackbar(
+          'Erreur',
+          'Échec de la création du justificatif',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
       }
     } catch (e) {
-      print('Erreur lors de la création du justificatif: $e');
+      print('❌ Exception dans justifierAbsence: $e');
       Get.snackbar(
         'Erreur',
         'Erreur lors de la création du justificatif: $e',
@@ -196,11 +211,12 @@ class AbscenceController extends GetxController {
     }
   }
 
+  // ✅ Dialog modifié pour gérer plusieurs images
   Future<Map<String, dynamic>?> _showJustificatifDialog() async {
     final textController = TextEditingController();
-    File? selectedImage;
-    String? imageUrl;
-    final storageService = SupabaseStorageService(); // ✅ Nouveau service
+    List<File> selectedImages = [];
+    List<String> uploadedImageUrls = []; // ✅ Renommé pour clarté
+    final storageService = SupabaseStorageService();
     bool isUploading = false;
 
     return await Get.dialog<Map<String, dynamic>?>(
@@ -225,44 +241,143 @@ class AbscenceController extends GetxController {
                     autofocus: true,
                   ),
                   const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed:
-                        isUploading
-                            ? null
-                            : () async {
-                              final picker = ImagePicker();
-                              final pickedFile = await picker.pickImage(
-                                source: ImageSource.gallery,
-                                maxWidth: 1024,
-                                maxHeight: 1024,
-                                imageQuality: 85,
-                              );
-                              if (pickedFile != null) {
-                                setState(() {
-                                  selectedImage = File(pickedFile.path);
-                                });
-                              }
-                            },
-                    icon: const Icon(Icons.image),
-                    label: const Text("Choisir une image"),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              isUploading
+                                  ? null
+                                  : () async {
+                                    final picker = ImagePicker();
+                                    final pickedFiles = await picker
+                                        .pickMultiImage(
+                                          maxWidth: 1024,
+                                          maxHeight: 1024,
+                                          imageQuality: 85,
+                                        );
+                                    if (pickedFiles.isNotEmpty) {
+                                      setState(() {
+                                        selectedImages =
+                                            pickedFiles
+                                                .map(
+                                                  (xFile) => File(xFile.path),
+                                                )
+                                                .toList();
+                                      });
+                                    }
+                                  },
+                          icon: const Icon(Icons.photo_library),
+                          label: Text(
+                            "Galerie\n(${selectedImages.length})",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              isUploading
+                                  ? null
+                                  : () async {
+                                    final picker = ImagePicker();
+                                    final pickedFile = await picker.pickImage(
+                                      source: ImageSource.camera,
+                                      maxWidth: 1024,
+                                      maxHeight: 1024,
+                                      imageQuality: 85,
+                                    );
+                                    if (pickedFile != null) {
+                                      setState(() {
+                                        selectedImages.add(
+                                          File(pickedFile.path),
+                                        );
+                                      });
+                                    }
+                                  },
+                          icon: const Icon(Icons.camera_alt),
+                          label: const Text(
+                            "Caméra",
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  if (selectedImage != null) ...[
-                    const SizedBox(height: 8),
-                    Image.file(selectedImage!, height: 100),
-                    const SizedBox(height: 8),
+
+                  if (selectedImages.isNotEmpty) ...[
+                    const SizedBox(height: 16),
                     Text(
-                      'Image sélectionnée: ${selectedImage!.path.split('/').last}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      'Images sélectionnées (${selectedImages.length}):',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 120,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: selectedImages.length,
+                        itemBuilder: (context, index) {
+                          return Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.file(
+                                    selectedImages[index],
+                                    height: 100,
+                                    width: 100,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap:
+                                        isUploading
+                                            ? null
+                                            : () {
+                                              setState(() {
+                                                selectedImages.removeAt(index);
+                                              });
+                                            },
+                                    child: Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      padding: const EdgeInsets.all(4),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ],
+
                   if (isUploading) ...[
                     const SizedBox(height: 16),
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Column(
                       children: [
-                        CircularProgressIndicator(),
-                        SizedBox(width: 16),
-                        Text('Upload en cours...'),
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Upload en cours (${uploadedImageUrls.length}/${selectedImages.length})...',
+                        ),
                       ],
                     ),
                   ],
@@ -281,28 +396,58 @@ class AbscenceController extends GetxController {
                         : () async {
                           final text = textController.text.trim();
                           if (text.isEmpty) {
-                            Get.snackbar('Erreur', 'Le justificatif est vide.');
+                            Get.snackbar(
+                              'Erreur',
+                              'Le justificatif ne peut pas être vide.',
+                            );
                             return;
                           }
 
                           try {
                             setState(() {
                               isUploading = true;
+                              uploadedImageUrls.clear();
                             });
 
-                            // ✅ Upload avec Supabase
-                            if (selectedImage != null) {
-                              imageUrl = await storageService
-                                  .uploadImageAndGetUrl(selectedImage!);
+                            // ✅ Upload des images une par une avec feedback
+                            if (selectedImages.isNotEmpty) {
+                              for (int i = 0; i < selectedImages.length; i++) {
+                                try {
+                                  print(
+                                    '📤 Upload image ${i + 1}/${selectedImages.length}',
+                                  );
+                                  final url = await storageService
+                                      .uploadImageAndGetUrl(selectedImages[i]);
+                                  if (url != null && url.isNotEmpty) {
+                                    uploadedImageUrls.add(url);
+                                    print('✅ Image ${i + 1} uploadée: $url');
+                                    setState(
+                                      () {},
+                                    ); // Mettre à jour le compteur
+                                  } else {
+                                    print('⚠️ URL vide pour image ${i + 1}');
+                                  }
+                                } catch (e) {
+                                  print('❌ Erreur upload image ${i + 1}: $e');
+                                  // Continue avec les autres images
+                                }
+                              }
                             }
 
+                            print(
+                              '📊 Upload terminé: ${uploadedImageUrls.length}/${selectedImages.length} images',
+                            );
+
+                            // ✅ Retourner les données même si aucune image n'a été uploadée
                             Get.back(
                               result: {
                                 'justificatif': text,
-                                'imageUrl': imageUrl,
+                                'imageUrls':
+                                    uploadedImageUrls, // Peut être vide
                               },
                             );
                           } catch (e) {
+                            print('❌ Erreur générale upload: $e');
                             setState(() {
                               isUploading = false;
                             });

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gesabscences/app/Repositories/AuthRepositories.dart';
 import 'package:gesabscences/app/modules/Abscence/views/abscence_view.dart';
 import 'package:gesabscences/app/modules/Pointage/views/pointage_view.dart';
+import 'package:gesabscences/app/modules/cours/views/cours_view.dart';
 import 'package:gesabscences/app/modules/home/views/home_view.dart';
 import 'package:gesabscences/app/modules/route/views/route_view.dart';
 import 'package:get/get.dart';
@@ -15,7 +16,6 @@ class PermissionService extends GetxService {
   bool get isVigile => userRole == 'VIGILE';
   bool get isAdmin => userRole == 'ADMIN';
   bool get isStudent => userRole == 'STUDENT';
- 
 
   // ✅ Permissions pour différentes fonctionnalités
   bool canAccessPointage() => !isStudent; // Tous les rôles
@@ -24,6 +24,7 @@ class PermissionService extends GetxService {
   bool canManageUsers() => isAdmin; // Seulement admin
   bool canViewReports() => !isVigile; // Pas les vigiles
   bool canViewRoutes() => !isVigile; // Pas les vigiles
+  bool canSeeCours() => !isVigile;
 
   // ✅ Configuration des menus basée sur les permissions
   List<NavigationItem> getAuthorizedMenus() {
@@ -37,6 +38,12 @@ class PermissionService extends GetxService {
           icon: Icons.login,
           page: const PointageView(),
         ),
+      );
+    }
+
+    if(canSeeCours()){
+      menus.add(
+        NavigationItem(index: menus.length, title: 'Cours', icon: Icons.book, page: const CoursView()),
       );
     }
 
@@ -62,7 +69,7 @@ class PermissionService extends GetxService {
       );
     }
 
-    if(canViewRoutes()){
+    if (canViewRoutes()) {
       menus.add(
         NavigationItem(
           index: menus.length,

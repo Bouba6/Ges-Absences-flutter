@@ -7,6 +7,8 @@ import '../modules/Main/bindings/main_binding.dart';
 import '../modules/Main/views/main_view.dart';
 import '../modules/Pointage/bindings/pointage_binding.dart';
 import '../modules/Pointage/views/pointage_view.dart';
+import '../modules/cours/bindings/cours_binding.dart';
+import '../modules/cours/views/cours_view.dart';
 import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
 import '../modules/home/views/scanner_view.dart';
@@ -45,6 +47,11 @@ class AppPages {
       name: _Paths.ROUTE,
       page: () => const RouteView(),
       binding: RouteBinding(),
+    ),
+    GetPage(
+      name: _Paths.COURS,
+      page: () => const CoursView(),
+      binding: CoursBinding(),
     ),
   ];
 }

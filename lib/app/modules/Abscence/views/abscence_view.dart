@@ -221,6 +221,7 @@ class AbsenceView extends StatelessWidget {
   ) {
     final String isJustified =
         absence.statutAbscence == 'JUSTIFIER' ? 'Justifiée' : 'Non justifiée';
+    //
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -266,13 +267,65 @@ class AbsenceView extends StatelessWidget {
               _getStatusLabel(absence.statutAbscence),
             ),
 
+            // ✅ Affichage des images justificatives si elles existent
+            // if (absence.justification?.imageUrls != null &&
+            //     absence.justification!.imageUrls!.isNotEmpty) ...[
+            //   const SizedBox(height: 12),
+            //   Text(
+            //     'Pièces justificatives (${absence.justification!.imageUrls!.length})',
+            //     style: TextStyle(
+            //       fontWeight: FontWeight.w500,
+            //       color: primaryDark,
+            //     ),
+            //   ),
+            //   const SizedBox(height: 8),
+            //   SizedBox(
+            //     height: 80,
+            //     child: ListView.builder(
+            //       scrollDirection: Axis.horizontal,
+            //       itemCount: absence.justification!.imageUrls!.length,
+            //       itemBuilder: (context, index) {
+            //         final imageUrl = absence.justification!.imageUrls![index];
+            //         return Container(
+            //           margin: const EdgeInsets.only(right: 8),
+            //           child: GestureDetector(
+            //             onTap: () => _showFullImage(imageUrl),
+            //             child: ClipRRect(
+            //               borderRadius: BorderRadius.circular(8),
+            //               child: Image.network(
+            //                 imageUrl,
+            //                 height: 80,
+            //                 width: 80,
+            //                 fit: BoxFit.cover,
+            //                 errorBuilder: (context, error, stackTrace) {
+            //                   return Container(
+            //                     height: 80,
+            //                     width: 80,
+            //                     decoration: BoxDecoration(
+            //                       color: primaryDark.withOpacity(0.1),
+            //                       borderRadius: BorderRadius.circular(8),
+            //                     ),
+            //                     child: Icon(
+            //                       Icons.broken_image,
+            //                       color: primaryDark.withOpacity(0.5),
+            //                     ),
+            //                   );
+            //                 },
+            //               ),
+            //             ),
+            //           ),
+            //         );
+            //       },
+            //     ),
+            //   ),
+            // ],
             const SizedBox(height: 16),
 
             // Boutons d'action
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (isJustified == true) ...[
+                if (isJustified == 'Justifiée') ...[
                   ElevatedButton.icon(
                     onPressed: () => controller.marquerNonJustifiee(absence),
                     icon: Icon(Icons.cancel, size: 18, color: white),
@@ -297,6 +350,62 @@ class AbsenceView extends StatelessWidget {
                   ),
                 ],
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ Méthode pour afficher l'image en plein écran
+  void _showFullImage(String imageUrl) {
+    Get.dialog(
+      Dialog(
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.error, size: 48, color: primaryOrange),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Impossible de charger l\'image',
+                            style: TextStyle(color: primaryDark),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: GestureDetector(
+                onTap: () => Get.back(),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: const Icon(Icons.close, color: Colors.white, size: 24),
+                ),
+              ),
             ),
           ],
         ),
