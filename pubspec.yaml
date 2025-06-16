@@ -18,11 +18,18 @@ dependencies:
   dio: ^4.0.0
   get_storage: ^2.0.3
   firebase_core: ^2.30.0
+  supabase_flutter: ^2.5.6
   firebase_storage: ^11.6.0
   image_picker: ^0.8.7+4
+  path: ^1.8.3
+  mime: ^1.0.4
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   path_provider: ^2.1.1
+  geolocator: ^9.0.2
+  google_maps_flutter: ^2.2.8
+  latlong2: ^0.8.1
+  flutter_map: ^4.0.0
 
 
 
@@ -30,7 +37,7 @@ dependencies:
 
   permission_handler: ^11.0.1
 
-  http: ^1.2.1
+  http: ^0.13.6
   flutter_secure_storage: ^9.0.0
   shared_preferences: ^2.2.2
   file_picker: ^10.1.9 
@@ -41,10 +48,23 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   hive_generator: ^2.0.1
   build_runner: ^2.4.6
+  flutter_launcher_icons: ^0.13.1
+
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/user.png
-    - assets/avatar_placeholder.png
-    - assets/img/ISM.jpg
+      - assets/img/ISM.jpg
+      - assets/img/icons.png
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/img/icons.png"
+  min_sdk_android: 21
+  # Pour Android avec icône adaptative
+  adaptive_icon_background: "#EC6C1B"
+  adaptive_icon_foreground: "assets/img/icons.png"
+  # Pour iOS
+  remove_alpha_ios: true
+  

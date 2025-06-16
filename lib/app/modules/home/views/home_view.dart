@@ -18,11 +18,13 @@ class HomeView extends GetView<HomeController> {
 
   @override
   Widget build(BuildContext context) {
-    final UserDataService _userDataService = Get.put(UserDataService());
+    final UserDataService _userDataService = Get.find<UserDataService>();
+    // final UserDataService _userDataService = Get.put(UserDataService());
     final String? vigileId = _userDataService.getVigileId;
     if (vigileId == null) {
       return const Center(child: CircularProgressIndicator());
     }
+
     return Column(
       children: [
         // Section Scanner et Recherche

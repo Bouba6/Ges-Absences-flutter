@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:gesabscences/app/Repositories/AuthRepositories.dart';
 import 'package:gesabscences/app/Repositories/EleveRepositories.dart';
@@ -10,7 +12,8 @@ import 'package:get/get_core/src/get_main.dart';
 import 'package:http/http.dart' as http;
 
 class AbsenceRepository {
-  static const String baseUrl = 'https://ges-abscences-backend.onrender.com/api/v1/mobile';
+  static const String baseUrl =
+      'https://ges-abscences-backend.onrender.com/api/v1/mobile';
 
   static final Dio _dio = Dio(); // Dio peut être partagé ou injecté aussi
   static final AuthService _authService = Get.find<AuthService>();
@@ -153,47 +156,172 @@ class AbsenceRepository {
   }
 
   // À ajouter dans votre AbsenceRepository
+  // Dans votre AbsenceRepository.dart, modifiez la méthode creerJustificatif
+
   static Future<bool> creerJustificatif({
     required String justificatif,
     required String statutJustification,
     required String abscenceId,
-    String? imageUrl,
+    List<String>? imageUrl,
   }) async {
     try {
-      final url = 'https://ges-abscences-backend.onrender.com/api/v1/mobile/justifier';
+      // https://ges-abscences-backend.onrender.com
+      const String baseUrl = 'https://ges-abscences-backend.onrender.com';
+      final Uri url = Uri.parse('$baseUrl/api/v1/mobile/justifier');
 
-      final body = {
-        'justificatif': justificatif,
-        'statutJustification': statutJustification,
-        'abscenceId': abscenceId,
-        'imageUrl': imageUrl,
-      };
-
-      print('🚀 Envoi justificatif vers: $url');
-      print('📋 Données: ${jsonEncode(body)}');
-
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(body),
+      // ✅ Validation des paramètres avant l'envoi
+      print('\n🔍 === VALIDATION PARAMÈTRES ===');
+      print(
+        '📝 justificatif: "$justificatif" (length: ${justificatif.length})',
       );
+      print('📊 statutJustification: "$statutJustification"');
+      print('🆔 abscenceId: "$abscenceId" (length: ${abscenceId.length})');
+      print('🖼️ imageUrl count: ${imageUrl?.length ?? 0}');
 
-      print('📬 Statut réponse: ${response.statusCode}');
-      print('📄 Réponse: ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ Justificatif créé avec succès');
-        return true;
-      } else {
-        print('❌ Erreur HTTP: ${response.statusCode}');
-        print('📄 Corps de la réponse: ${response.body}');
+      // Validation des champs requis
+      if (justificatif.trim().isEmpty) {
+        print('❌ ERROR: justificatif est vide');
         return false;
       }
-    } catch (e) {
-      print('❌ Erreur lors de la création du justificatif: $e');
+
+      if (abscenceId.trim().isEmpty) {
+        print('❌ ERROR: abscenceId est vide');
+        return false;
+      }
+
+      // Vérifier le format de l'abscenceId (MongoDB ObjectId = 24 caractères hex)
+      if (abscenceId.length != 24 ||
+          !RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(abscenceId)) {
+        print('⚠️ WARNING: abscenceId format suspect: $abscenceId');
+      }
+
+      // ✅ Créer le body avec validation
+      final Map<String, dynamic> requestBody = {
+        'justificatif': justificatif.trim(),
+        'statutJustification': statutJustification,
+        'abscenceId': abscenceId.trim(),
+      };
+
+      // ✅ Validation et ajout des URLs d'images
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        // Valider chaque URL
+        final validUrls = <String>[];
+        for (int i = 0; i < imageUrl.length; i++) {
+          final url = imageUrl[i].trim();
+          if (url.isNotEmpty && Uri.tryParse(url) != null) {
+            validUrls.add(url);
+            print('✅ Image $i URL valide: $url');
+          } else {
+            print('❌ Image $i URL invalide: $url');
+          }
+        }
+
+        if (validUrls.isNotEmpty) {
+          requestBody['imageUrl'] = validUrls;
+        }
+      }
+
+      // 🐛 DEBUG COMPLET
+      print('\n🚀 === REQUÊTE API ===');
+      print('🔗 URL: $url');
+      print('📝 Body JSON:');
+      final jsonBody = jsonEncode(requestBody);
+      print(jsonBody);
+      print('📊 Body size: ${jsonBody.length} bytes');
+
+      // ✅ Headers plus complets
+      final headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Accept': 'application/json',
+        'User-Agent': 'Flutter-App/1.0',
+      };
+
+      print('📋 Headers: $headers');
+
+      final response = await http.post(url, headers: headers, body: jsonBody);
+
+      // 🐛 DEBUG RÉPONSE COMPLÈTE
+      print('\n📡 === RÉPONSE SERVEUR ===');
+      print('📊 Status Code: ${response.statusCode}');
+      print('📋 Response Headers: ${response.headers}');
+      print('📄 Response Body: ${response.body}');
+      print('📏 Response Body Length: ${response.body.length}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('✅ Justificatif créé avec succès!');
+
+        try {
+          final responseData = jsonDecode(response.body);
+          print('📋 Données réponse: $responseData');
+        } catch (e) {
+          print('⚠️ Réponse non-JSON (mais succès): ${response.body}');
+        }
+
+        return true;
+      } else {
+        print('❌ ÉCHEC - Status: ${response.statusCode}');
+
+        // ✅ Analyse détaillée des erreurs courantes
+        switch (response.statusCode) {
+          case 400:
+            print('🔍 Bad Request - Possible causes:');
+            print('  • Champ requis manquant');
+            print('  • Format de données incorrect');
+            print('  • abscenceId invalide');
+            print('  • imageUrl format incorrect');
+            break;
+          case 401:
+            print('🔍 Unauthorized - Token d\'authentification requis?');
+            break;
+          case 404:
+            print('🔍 Not Found - Endpoint ou ressource introuvable');
+            break;
+          case 422:
+            print('🔍 Unprocessable Entity - Erreur de validation');
+            break;
+          case 500:
+            print('🔍 Internal Server Error - Problème côté serveur');
+            break;
+        }
+
+        // ✅ Essayer de décoder l'erreur
+        try {
+          final errorData = jsonDecode(response.body);
+          print('🔍 Détails erreur JSON: $errorData');
+
+          // Afficher les détails spécifiques si disponibles
+          if (errorData is Map<String, dynamic>) {
+            if (errorData.containsKey('message')) {
+              print('💬 Message: ${errorData['message']}');
+            }
+            if (errorData.containsKey('errors')) {
+              print('📝 Erreurs détaillées: ${errorData['errors']}');
+            }
+            if (errorData.containsKey('details')) {
+              print('🔎 Détails: ${errorData['details']}');
+            }
+          }
+        } catch (e) {
+          print('⚠️ Réponse d\'erreur non-JSON: ${response.body}');
+        }
+
+        return false;
+      }
+    } catch (e, stackTrace) {
+      print('\n💥 === EXCEPTION ===');
+      print('❌ Exception: $e');
+      print('📍 Type: ${e.runtimeType}');
+
+      // ✅ Analyse des exceptions courantes
+      if (e is SocketException) {
+        print('🌐 Problème de connexion réseau');
+      } else if (e is TimeoutException) {
+        print('⏱️ Timeout de la requête');
+      } else if (e is FormatException) {
+        print('📄 Erreur de format JSON');
+      }
+
+      print('🔍 Stack trace: $stackTrace');
       return false;
     }
   }

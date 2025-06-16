@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:gesabscences/app/Repositories/AbscenceRepository.dart';
 import 'package:gesabscences/app/Repositories/StorageRepository.dart';
+import 'package:gesabscences/app/Repositories/SupabaseRepositories.dart';
 import 'package:gesabscences/app/core/Enums/AbscenceState.dart';
 import 'package:gesabscences/app/data/dto/Response/AbscenceResponse.dart';
 import 'package:get/get.dart';
@@ -122,14 +123,21 @@ class AbscenceController extends GetxController {
 
       isUpdating.value = true;
       final justificatifText = justificatifResult['justificatif'] as String;
-      final imageUrl = justificatifResult['imageUrl'] as String?;
-      // Créer le justificatif via l'endpoint POST avec statutJustification = "EN_ATTENTE"
+      final imageUrls =
+          justificatifResult['imageUrls'] as List<String>?; // ✅ Peut être null
+
+      print('🚀 Création justificatif:');
+      print('📝 Texte: $justificatifText');
+      print('🖼️ Images: ${imageUrls?.length ?? 0}');
+      print('🆔 AbsenceId: ${absence.id}');
+
+      // ✅ Utilisation du bon nom de paramètre
       final success = await AbsenceRepository.creerJustificatif(
         justificatif: justificatifText,
         statutJustification: "EN_ATTENTE",
         abscenceId: absence.id,
-        imageUrl: imageUrl,
-      ).timeout(Duration(seconds: 15));
+        imageUrl: imageUrls ?? [], // ✅ Nom correct + valeur par défaut
+      ).timeout(Duration(seconds: 30));
 
       if (success) {
         Get.snackbar(
@@ -140,9 +148,17 @@ class AbscenceController extends GetxController {
           colorText: Colors.white,
         );
         await refresh();
+      } else {
+        Get.snackbar(
+          'Erreur',
+          'Échec de la création du justificatif',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
       }
     } catch (e) {
-      print('Erreur lors de la création du justificatif: $e');
+      print('❌ Exception dans justifierAbsence: $e');
       Get.snackbar(
         'Erreur',
         'Erreur lors de la création du justificatif: $e',
@@ -195,125 +211,263 @@ class AbscenceController extends GetxController {
     }
   }
 
+  // ✅ Dialog modifié pour gérer plusieurs images
   Future<Map<String, dynamic>?> _showJustificatifDialog() async {
-  final textController = TextEditingController();
-  File? selectedImage;
-  String? imageUrl;
-  final storageService = StorageService();
+    final textController = TextEditingController();
+    List<File> selectedImages = [];
+    List<String> uploadedImageUrls = []; // ✅ Renommé pour clarté
+    final storageService = SupabaseStorageService();
+    bool isUploading = false;
 
-  return await Get.dialog<Map<String, dynamic>?>(
-    StatefulBuilder(
-      builder: (context, setState) {
-        return AlertDialog(
-          title: const Text('Justifier l\'absence'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Saisissez votre justificatif :'),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: textController,
-                  decoration: const InputDecoration(
-                    labelText: 'Justificatif',
-                    border: OutlineInputBorder(),
-                    hintText: 'Ex: Maladie, rendez-vous médical...',
+    return await Get.dialog<Map<String, dynamic>?>(
+      StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Justifier l\'absence'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Saisissez votre justificatif :'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: textController,
+                    decoration: const InputDecoration(
+                      labelText: 'Justificatif',
+                      border: OutlineInputBorder(),
+                      hintText: 'Ex: Maladie, rendez-vous médical...',
+                    ),
+                    maxLines: 3,
+                    autofocus: true,
                   ),
-                  maxLines: 3,
-                  autofocus: true,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final picker = ImagePicker();
-                    final pickedFile = await picker.pickImage(
-                      source: ImageSource.gallery,
-                    );
-                    if (pickedFile != null) {
-                      setState(() {
-                        selectedImage = File(pickedFile.path);
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.image),
-                  label: const Text("Choisir une image"),
-                ),
-                if (selectedImage != null) ...[
-                  const SizedBox(height: 8),
-                  Image.file(selectedImage!, height: 100),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Image sélectionnée: ${selectedImage!.path.split('/').last}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(result: null),
-              child: const Text('Annuler'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final text = textController.text.trim();
-                if (text.isEmpty) {
-                  Get.snackbar('Erreur', 'Le justificatif est vide.');
-                  return;
-                }
+                  const SizedBox(height: 16),
 
-                try {
-                  // Upload image s'il y en a une - PASSEZ L'IMAGE EN PARAMÈTRE
-                  if (selectedImage != null) {
-                    // Afficher un indicateur de chargement
-                    Get.dialog(
-                      const AlertDialog(
-                        content: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(width: 16),
-                            Text('Upload en cours...'),
-                          ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              isUploading
+                                  ? null
+                                  : () async {
+                                    final picker = ImagePicker();
+                                    final pickedFiles = await picker
+                                        .pickMultiImage(
+                                          maxWidth: 1024,
+                                          maxHeight: 1024,
+                                          imageQuality: 85,
+                                        );
+                                    if (pickedFiles.isNotEmpty) {
+                                      setState(() {
+                                        selectedImages =
+                                            pickedFiles
+                                                .map(
+                                                  (xFile) => File(xFile.path),
+                                                )
+                                                .toList();
+                                      });
+                                    }
+                                  },
+                          icon: const Icon(Icons.photo_library),
+                          label: Text(
+                            "Galerie\n(${selectedImages.length})",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
                       ),
-                      barrierDismissible: false,
-                    );
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              isUploading
+                                  ? null
+                                  : () async {
+                                    final picker = ImagePicker();
+                                    final pickedFile = await picker.pickImage(
+                                      source: ImageSource.camera,
+                                      maxWidth: 1024,
+                                      maxHeight: 1024,
+                                      imageQuality: 85,
+                                    );
+                                    if (pickedFile != null) {
+                                      setState(() {
+                                        selectedImages.add(
+                                          File(pickedFile.path),
+                                        );
+                                      });
+                                    }
+                                  },
+                          icon: const Icon(Icons.camera_alt),
+                          label: const Text(
+                            "Caméra",
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
 
-                    // Appeler la méthode avec l'image en paramètre
-                    imageUrl = await storageService.uploadImageAndGetUrl(selectedImage!);
-                    
-                    // Fermer l'indicateur de chargement
-                    Get.back();
-                  }
+                  if (selectedImages.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Images sélectionnées (${selectedImages.length}):',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 120,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: selectedImages.length,
+                        itemBuilder: (context, index) {
+                          return Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.file(
+                                    selectedImages[index],
+                                    height: 100,
+                                    width: 100,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap:
+                                        isUploading
+                                            ? null
+                                            : () {
+                                              setState(() {
+                                                selectedImages.removeAt(index);
+                                              });
+                                            },
+                                    child: Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      padding: const EdgeInsets.all(4),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
 
-                  // Retourner le résultat et fermer le dialog
-                  Get.back(
-                    result: {'justificatif': text, 'imageUrl': imageUrl},
-                  );
-                } catch (e) {
-                  // Fermer l'indicateur de chargement si il y a une erreur
-                  if (Get.isDialogOpen == true) {
-                    Get.back();
-                  }
-                  
-                  Get.snackbar(
-                    'Erreur', 
-                    'Erreur lors de l\'upload: ${e.toString()}',
-                    backgroundColor: Colors.red,
-                    colorText: Colors.white,
-                  );
-                }
-              },
-              child: const Text('Valider'),
+                  if (isUploading) ...[
+                    const SizedBox(height: 16),
+                    Column(
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Upload en cours (${uploadedImageUrls.length}/${selectedImages.length})...',
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ],
-        );
-      },
-    ),
-  );
-}
+            actions: [
+              TextButton(
+                onPressed: isUploading ? null : () => Get.back(result: null),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed:
+                    isUploading
+                        ? null
+                        : () async {
+                          final text = textController.text.trim();
+                          if (text.isEmpty) {
+                            Get.snackbar(
+                              'Erreur',
+                              'Le justificatif ne peut pas être vide.',
+                            );
+                            return;
+                          }
+
+                          try {
+                            setState(() {
+                              isUploading = true;
+                              uploadedImageUrls.clear();
+                            });
+
+                            // ✅ Upload des images une par une avec feedback
+                            if (selectedImages.isNotEmpty) {
+                              for (int i = 0; i < selectedImages.length; i++) {
+                                try {
+                                  print(
+                                    '📤 Upload image ${i + 1}/${selectedImages.length}',
+                                  );
+                                  final url = await storageService
+                                      .uploadImageAndGetUrl(selectedImages[i]);
+                                  if (url != null && url.isNotEmpty) {
+                                    uploadedImageUrls.add(url);
+                                    print('✅ Image ${i + 1} uploadée: $url');
+                                    setState(
+                                      () {},
+                                    ); // Mettre à jour le compteur
+                                  } else {
+                                    print('⚠️ URL vide pour image ${i + 1}');
+                                  }
+                                } catch (e) {
+                                  print('❌ Erreur upload image ${i + 1}: $e');
+                                  // Continue avec les autres images
+                                }
+                              }
+                            }
+
+                            print(
+                              '📊 Upload terminé: ${uploadedImageUrls.length}/${selectedImages.length} images',
+                            );
+
+                            // ✅ Retourner les données même si aucune image n'a été uploadée
+                            Get.back(
+                              result: {
+                                'justificatif': text,
+                                'imageUrls':
+                                    uploadedImageUrls, // Peut être vide
+                              },
+                            );
+                          } catch (e) {
+                            print('❌ Erreur générale upload: $e');
+                            setState(() {
+                              isUploading = false;
+                            });
+
+                            Get.snackbar(
+                              'Erreur',
+                              'Erreur lors de l\'upload: ${e.toString()}',
+                              backgroundColor: Colors.red,
+                              colorText: Colors.white,
+                            );
+                          }
+                        },
+                child: const Text('Valider'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   Future<bool> _showConfirmationDialog(String title, String message) async {
     return await Get.dialog(
