@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "72774460675",
+    "project_id": "boutiqueecommerce-3023b",
+    "storage_bucket": "boutiqueecommerce-3023b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:72774460675:android:498595f4e1a46361263536",
+        "android_client_info": {
+          "package_name": "com.example.gesabscences"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyo0vyFZAQHUOUaOB70VBNyiG1e50BfQU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
